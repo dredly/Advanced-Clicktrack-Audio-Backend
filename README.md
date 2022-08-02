@@ -8,7 +8,7 @@
 - [x] Enable programmatic choice of instrument with soundfont
 - [x] Refactor uploading logic out of audio processing functions
 - [x] Remove unnecessary sample selection stuff
-- [ ] Test deployment with docker container
+- [x] Test deployment with docker container
 - [ ] Add a bunch of instruments
 - [ ] Add support for choosing an instrument from the front end
 - [ ] Properly handle polyrhythms in midi

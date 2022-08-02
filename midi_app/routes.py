@@ -6,7 +6,7 @@ from .file_management import upload_file
 #Health check to quickly verify if the API is running or not
 @app.route("/")
 def home():
-    return {"marco": "polo"}
+    return {"marco": "polo!!!"}
 
 @app.route("/api/make_midi", methods=["POST"])
 def make_midi() -> dict:
