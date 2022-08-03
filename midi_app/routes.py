@@ -47,7 +47,6 @@ def make_wav() -> dict:
 def make_polyrhythm():
     data = request.json
     tempo_data= data["tempoData"]
-    time_sig_data = data["timeSigData"]
     section_data = data["sectionData"]
     make_midi_file_with_polyrhythms(section_data, tempo_data)
     return {"url": "placeholder"}

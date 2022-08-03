@@ -115,6 +115,13 @@ def make_midi_file_with_polyrhythms(section_data, tempo_data):
     for idx, bpm in enumerate(bpms):
         main_rhythm_part.insert(idx, tempo.MetronomeMark(number=bpm))
 
+    # Add time signature markers
+    insert_at = 0
+    for idx, section in enumerate(section_data):
+        time_sig = section["numBeats"]
+        main_rhythm_part.insert(insert_at, meter.TimeSignature(f"{time_sig}/4"))
+        insert_at += int(time_sig) * int(section["numMeasures"])
+
     clicktrack_stream.insert(0, main_rhythm_part)
     clicktrack_stream.insert(0, secondary_rhythm_part)
     clicktrack_stream.write("midi", "polyrhythm.midi")
