@@ -8,7 +8,8 @@ import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 
-from . import instruments
+from .instruments import all_instruments
+from .audio_processing_helpers import *
 
 from dotenv import load_dotenv
 
@@ -76,10 +77,53 @@ def make_midi_file(tempo_data: dict, time_sig_data: dict, instrument=None) -> st
 
     return "clicktrack.midi"
 
+
+def make_midi_file_with_polyrhythms(section_data, tempo_data):
+    clicktrack_stream = stream.Stream()
+    main_rhythm_part = stream.Part()
+    secondary_rhythm_part = stream.Part()
+
+    # Extract the bpm for each note into a list
+    # print("tempo_data", tempo_data[0]['bpm'])
+    # for n in tempo_data:
+    #     print(n)
+    bpms = [n["bpm"] for n in tempo_data]
+
+    #Actually add the notes
+    for section in section_data:
+        # Hardcode note pitch for now
+        main_rhythm_part.append(
+            make_section(int(section["numBeats"]), int(section["numMeasures"]), "C4")
+        )
+        if section["secondaryNumBeats"]:
+            secondary_rhythm_part.append(
+                make_secondary_rhythm_section(
+                    int(section["numBeats"]),
+                    int(section["numMeasures"]),
+                    "C4",
+                    int(section["secondaryNumBeats"]),
+                )
+            )
+        else:
+            secondary_rhythm_part.append(
+                make_silent_section(
+                    int(section["numBeats"]), int(section["numMeasures"])
+                )
+            )
+
+    # Add tempo markers
+    for idx, bpm in enumerate(bpms):
+        main_rhythm_part.insert(idx, tempo.MetronomeMark(number=bpm))
+
+    clicktrack_stream.insert(0, main_rhythm_part)
+    clicktrack_stream.insert(0, secondary_rhythm_part)
+    clicktrack_stream.write("midi", "polyrhythm.midi")
+
+
 def make_wav_file(
     tempo_data: dict,
     time_sig_data: dict,
-    instrument: instruments.Instrument = instruments.drum1,
+    instrument_val="woodblock_high",  # Used to look up the correct instrument object in the all_instruments dict
 ) -> str:
     """Takes metadata and creates a midi file with it, which is then used along with a soundfont
     to synthesise a wav file
@@ -87,6 +131,7 @@ def make_wav_file(
     Returns the name of the saved wav file.
     """
 
+    instrument = all_instruments[instrument_val]
     # First make a midi which can then be synthesised into a wav
     # This time the instrument is important as it is used in the wav file synthesis
     midi_filename = make_midi_file(tempo_data, time_sig_data, instrument)
