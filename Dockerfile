@@ -3,7 +3,7 @@ FROM ubuntu
 #Install dependencies necessary for wav synthesis from midi
 RUN apt-get update -y \
 	#Install dependencies necessary for wav synthesis from midi
-	&& apt-get install -y fluidsynth timidity \
+	&& apt-get install -y fluidsynth timidity libsndfile1 \
 	#Install pip for managing pythonpackages
 	python3-pip
 

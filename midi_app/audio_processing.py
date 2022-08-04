@@ -1,4 +1,5 @@
 import numpy as np
+import soundfile as sf
 
 from music21 import stream, note, tempo, meter
 from mido import MidiFile
@@ -109,3 +110,25 @@ def make_wav_file(section_data, tempo_data, instrument_val="woodblock_high") -> 
     fs.midi_to_audio(midi_filename, "output.wav")
 
     return "output.wav"
+
+def make_flac_file(section_data, tempo_data, instrument_val="woodblock_high") -> str:
+
+    instrument = all_instruments[instrument_val]
+    midi_filename = make_midi_file(section_data, tempo_data, instrument)
+
+    fs = FluidSynth(instrument.soundfont_file)
+
+    fs.midi_to_audio(midi_filename, "output.flac")
+
+    return "output.flac"
+
+def make_ogg_file(section_data, tempo_data, instrument_val="woodblock_high") -> str:
+
+    #First synthesise to a flac file (because should be faster than wav and will be further compressed anyway)
+    flac_filename = make_flac_file(section_data, tempo_data, instrument_val)
+
+    data, samplerate = sf.read(flac_filename)
+    sf.write('output.ogg', data, samplerate)
+
+    return 'output.ogg'
+
