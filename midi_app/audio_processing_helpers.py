@@ -29,3 +29,25 @@ def make_secondary_rhythm_section(
         for _ in range(secondary_num_beats * num_measures)
     ]
     return list(np.concatenate(note_rest_pairs).flat)
+
+def make_down_beat_only_section(num_quarters: int, num_measures: int, note_pitch: str, accents_on: List[int]) -> List[note.Note | note.Rest]:
+    notes_and_rests = []
+    for m in range(num_measures):
+        for q in range(num_quarters):
+            if q in accents_on:
+                notes_and_rests.append(note.Note(note_pitch, quarterLength=0.5))
+                notes_and_rests.append(note.Rest(quarterLength=0.5))
+            else:
+                notes_and_rests.append(note.Rest(quarterLength=1))
+    return notes_and_rests
+
+def make_weak_beat_only_section(num_quarters: int, num_measures: int, note_pitch: str, accents_on: List[int]) -> List[note.Note | note.Rest]:
+    notes_and_rests = []
+    for m in range(num_measures):
+        for q in range(num_quarters):
+            if q not in accents_on:
+                notes_and_rests.append(note.Note(note_pitch, quarterLength=0.5))
+                notes_and_rests.append(note.Rest(quarterLength=0.5))
+            else:
+                notes_and_rests.append(note.Rest(quarterLength=1))
+    return notes_and_rests

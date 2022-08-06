@@ -22,7 +22,7 @@ def make_midi() -> dict:
     tempo_data = data["tempoData"]
     section_data = data["sectionData"]
     # Temporary set arg separate to True for testing
-    midi_filename = make_midi_file(section_data, tempo_data, separate=True)
+    midi_filename = make_midi_file(section_data, tempo_data)
     midi_url = upload_file(midi_filename)
     return (
         {"url": midi_url}
