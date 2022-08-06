@@ -32,7 +32,7 @@ def make_midi_file(
     using different soundfonts
     """
 
-    print('Called make_mid_file()')
+    print("Called make_mid_file()")
     clicktrack_stream = stream.Stream()
     main_rhythm_part = stream.Part()
     secondary_rhythm_part = stream.Part()
@@ -57,7 +57,6 @@ def make_midi_file(
             note_pitch_secondary: str = instruments[1].playback_note
         else:
             note_pitch_secondary: str = instruments[0].playback_note
-   
 
     # Actually add the notes
     for section in section_data:
@@ -94,19 +93,21 @@ def make_midi_file(
         insert_at += int(time_sig) * int(section["numMeasures"])
 
     if not has_polyrhythms and len(instruments) > 1:
-        #Move all weak beats over to second track
+        # Move all weak beats over to second track
         notes_and_rests_list_main = list(main_rhythm_part.notesAndRests)
         notes_and_rests_list_secondary = list(secondary_rhythm_part.notesAndRests)
         for i in range(len(notes_and_rests_list_main)):
             note_idx = 2 * i
             try:
                 if not accents[i]:
-                    #First turn non accented notes into rests in the first track
+                    # First turn non accented notes into rests in the first track
                     notes_and_rests_list_main[note_idx] = note.Rest(quarterLength=0.5)
-                    notes_and_rests_list_secondary[note_idx] = note.Note(instruments[1].playback_note, quarterLength=0.5)
+                    notes_and_rests_list_secondary[note_idx] = note.Note(
+                        instruments[1].playback_note, quarterLength=0.5
+                    )
             except:
                 pass
-            
+
         main_rhythm_part_updated = stream.Part()
         main_rhythm_part_updated.append(notes_and_rests_list_main)
         secondary_rhythm_part_updated = stream.Part()
@@ -120,7 +121,9 @@ def make_midi_file(
         insert_at = 0
         for idx, section in enumerate(section_data):
             time_sig = section["numBeats"]
-            main_rhythm_part_updated.insert(insert_at, meter.TimeSignature(f"{time_sig}/4"))
+            main_rhythm_part_updated.insert(
+                insert_at, meter.TimeSignature(f"{time_sig}/4")
+            )
             insert_at += int(time_sig) * int(section["numMeasures"])
 
         clicktrack_stream.insert(0, main_rhythm_part_updated)
@@ -149,7 +152,6 @@ def make_midi_file(
             mf2.save("secondary_part.midi")
 
             return ["main_part.midi", "secondary_part.midi"]
-                
 
     clicktrack_stream.insert(0, main_rhythm_part)
     clicktrack_stream.insert(0, secondary_rhythm_part)
@@ -220,12 +222,12 @@ def make_wav_file(
         midi_filenames = make_midi_file(section_data, tempo_data, instruments, True)
         for idx, mfn in enumerate(midi_filenames):
             fs = FluidSynth(instruments[idx].soundfont_file)
-            fs.midi_to_audio(mfn, f'part{idx + 1}.wav')
-        wav_data1, sample_rate = sf.read('part1.wav')
-        wav_data2, sample_rate = sf.read('part2.wav')
-        wav_data = wav_data1 + wav_data2 
-        sf.write('output.wav', wav_data, sample_rate)
-    
+            fs.midi_to_audio(mfn, f"part{idx + 1}.wav")
+        wav_data1, sample_rate = sf.read("part1.wav")
+        wav_data2, sample_rate = sf.read("part2.wav")
+        wav_data = wav_data1 + wav_data2
+        sf.write("output.wav", wav_data, sample_rate)
+
     else:
         midi_filename = make_midi_file(section_data, tempo_data, instruments)
 
@@ -236,35 +238,39 @@ def make_wav_file(
     return "output.wav"
 
 
-def make_flac_file(section_data, tempo_data, instrument_val="woodblock_high") -> str:
+def make_flac_file(
+    section_data, tempo_data, instrument_vals: List[str] = ["woodblock_high"]
+) -> str:
 
-    instrument = all_instruments[instrument_val]
-    midi_filename = make_midi_file(section_data, tempo_data, instrument)
+    instruments = [all_instruments[iv] for iv in instrument_vals]
+    # Check if a second instrument has been specified
+    if len(instruments) > 1:
+        # Get a different midi file for each instrument, then combine them after
+        midi_filenames = make_midi_file(section_data, tempo_data, instruments, True)
+        for idx, mfn in enumerate(midi_filenames):
+            fs = FluidSynth(instruments[idx].soundfont_file)
+            fs.midi_to_audio(mfn, f"part{idx + 1}.flac")
+        flac_data1, sample_rate = sf.read("part1.flac")
+        flac_data2, sample_rate = sf.read("part2.flac")
+        flac_data = flac_data1 + flac_data2
+        sf.write("output.flac", flac_data, sample_rate)
 
-    fs = FluidSynth(instrument.soundfont_file)
+    else:
+        midi_filename = make_midi_file(section_data, tempo_data, instruments)
 
-    fs.midi_to_audio(midi_filename, "output.flac")
+        fs = FluidSynth(instruments[0].soundfont_file)
+
+        fs.midi_to_audio(midi_filename, "output.flac")
 
     return "output.flac"
 
 
-def make_ogg_file(section_data, tempo_data, instrument_val="woodblock_high") -> str:
+def make_ogg_file(section_data, tempo_data, instrument_vals=["woodblock_high"]) -> str:
 
     # First synthesise to a flac file (because should be faster than wav and will be further compressed anyway)
-    flac_filename = make_flac_file(section_data, tempo_data, instrument_val)
+    flac_filename = make_flac_file(section_data, tempo_data, instrument_vals)
 
     data, samplerate = sf.read(flac_filename)
     sf.write("output.ogg", data, samplerate)
 
     return "output.ogg"
-
-
-def make_sample_files(instruments: List[Instrument] = test_instr_list) -> None:
-    for instr in instruments:
-        mf = MidiFile()
-        track = MidiTrack()
-        mf.tracks.append(track)
-        track.append(Message("program_change", program=12, time=0))
-        track.append(Message("note_on", note=64, velocity=64, time=32))
-        track.append(Message("note_off", note=64, velocity=127, time=32))
-        mf.save(f"{instr.name.replace(' ', '')}.midi")

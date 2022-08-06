@@ -4,7 +4,9 @@ import numpy as np
 
 
 def make_silent_section(num_quarters: int, num_measures: int) -> List[note.Rest]:
-    return [note.Rest(quarterLength=0.5) for _ in range(2 * num_quarters * num_measures)]
+    return [
+        note.Rest(quarterLength=0.5) for _ in range(2 * num_quarters * num_measures)
+    ]
 
 
 def make_section(
