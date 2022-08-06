@@ -112,12 +112,43 @@ def make_midi_file(
         secondary_rhythm_part_updated = stream.Part()
         secondary_rhythm_part_updated.append(notes_and_rests_list_secondary)
 
+        # Add tempo markers
+        for idx, bpm in enumerate(bpms):
+            main_rhythm_part_updated.insert(idx, tempo.MetronomeMark(number=bpm))
+
+        # Add time signature markers
+        insert_at = 0
+        for idx, section in enumerate(section_data):
+            time_sig = section["numBeats"]
+            main_rhythm_part_updated.insert(insert_at, meter.TimeSignature(f"{time_sig}/4"))
+            insert_at += int(time_sig) * int(section["numMeasures"])
+
         clicktrack_stream.insert(0, main_rhythm_part_updated)
         clicktrack_stream.insert(0, secondary_rhythm_part_updated)
         clicktrack_stream.write("midi", "clicktrack.midi")
 
-        #TEMPORARY - to test functionality so far
-        return "clicktrack.midi"
+        if separate:
+            mf1 = MidiFile("clicktrack.midi")
+            secondary_track = mf1.tracks[2]
+            # Mute the secondary track
+            note_messages = [
+                m for m in secondary_track if hasattr(m, "velocity") and m.velocity > 0
+            ]
+            for nm in note_messages:
+                nm.velocity = 0
+            mf1.save("main_part.midi")
+
+            mf2 = MidiFile("clicktrack.midi")
+            main_track = mf2.tracks[1]
+            # Mute the main track
+            note_messages = [
+                m for m in main_track if hasattr(m, "velocity") and m.velocity > 0
+            ]
+            for nm in note_messages:
+                nm.velocity = 0
+            mf2.save("secondary_part.midi")
+
+            return ["main_part.midi", "secondary_part.midi"]
                 
 
     clicktrack_stream.insert(0, main_rhythm_part)
