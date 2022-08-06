@@ -1,7 +1,9 @@
+import sys
+
 import numpy as np
 import soundfile as sf
 
-from music21 import stream, tempo, meter
+from music21 import stream, tempo, meter, note
 from mido import MidiFile, Message, MidiTrack
 from midi2audio import FluidSynth
 
@@ -29,6 +31,8 @@ def make_midi_file(
     If separate=True, then a separate file is generated for each track. These separate files can then be used to synthesise audio
     using different soundfonts
     """
+
+    print('Called make_mid_file()')
     clicktrack_stream = stream.Stream()
     main_rhythm_part = stream.Part()
     secondary_rhythm_part = stream.Part()
@@ -40,6 +44,9 @@ def make_midi_file(
     # is accented
     accents = [n["downBeat"] for n in tempo_data]
     print("accents", accents)
+
+    # Find out if there are any polyrhthmic sections
+    has_polyrhythms = any(s["secondaryNumBeats"] for s in section_data)
 
     # If an instrument is specified, use the given note otherwise default to middle C
     note_pitch_main = "C4"
@@ -85,6 +92,33 @@ def make_midi_file(
         time_sig = section["numBeats"]
         main_rhythm_part.insert(insert_at, meter.TimeSignature(f"{time_sig}/4"))
         insert_at += int(time_sig) * int(section["numMeasures"])
+
+    if not has_polyrhythms and len(instruments) > 1:
+        #Move all weak beats over to second track
+        notes_and_rests_list_main = list(main_rhythm_part.notesAndRests)
+        notes_and_rests_list_secondary = list(secondary_rhythm_part.notesAndRests)
+        for i in range(len(notes_and_rests_list_main)):
+            note_idx = 2 * i
+            try:
+                if not accents[i]:
+                    #First turn non accented notes into rests in the first track
+                    notes_and_rests_list_main[note_idx] = note.Rest(quarterLength=0.5)
+                    notes_and_rests_list_secondary[note_idx] = note.Note(instruments[1].playback_note, quarterLength=0.5)
+            except:
+                pass
+            
+        main_rhythm_part_updated = stream.Part()
+        main_rhythm_part_updated.append(notes_and_rests_list_main)
+        secondary_rhythm_part_updated = stream.Part()
+        secondary_rhythm_part_updated.append(notes_and_rests_list_secondary)
+
+        clicktrack_stream.insert(0, main_rhythm_part_updated)
+        clicktrack_stream.insert(0, secondary_rhythm_part_updated)
+        clicktrack_stream.write("midi", "clicktrack.midi")
+
+        #TEMPORARY - to test functionality so far
+        return "clicktrack.midi"
+                
 
     clicktrack_stream.insert(0, main_rhythm_part)
     clicktrack_stream.insert(0, secondary_rhythm_part)
