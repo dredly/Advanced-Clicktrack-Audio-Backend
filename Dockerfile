@@ -1,8 +1,7 @@
 FROM ubuntu
 
-#Install dependencies necessary for wav synthesis from midi
+#Install dependencies necessary for wav synthesis from midi and sound conversion
 RUN apt-get update -y \
-	#Install dependencies necessary for wav synthesis from midi
 	&& apt-get install -y fluidsynth timidity libsndfile1 \
 	#Install pip for managing pythonpackages
 	python3-pip
@@ -17,5 +16,5 @@ COPY . .
 
 EXPOSE 5000
 
-# CMD ["python3", "-m" , "flask", "run", "--host=0.0.0.0"]
-CMD gunicorn wsgi:app
+CMD ["python3", "-m" , "flask", "run", "--host=0.0.0.0"]
+# CMD gunicorn wsgi:app

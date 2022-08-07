@@ -21,15 +21,7 @@ def make_midi() -> dict:
     tempo_data = data["tempoData"]
     section_data = data["sectionData"]
     # Temporary pass in default instruments for testing
-    midi_filename = make_midi_file(
-        section_data,
-        tempo_data,
-        instruments=[
-            all_instruments["woodblock_high"],
-            all_instruments["woodblock_lower"],
-        ],
-        separate=True,
-    )
+    midi_filename = make_midi_file(section_data, tempo_data)
     midi_url = upload_file(midi_filename)
     return (
         {"url": midi_url}

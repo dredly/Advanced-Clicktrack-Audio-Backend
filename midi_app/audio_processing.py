@@ -92,7 +92,7 @@ def make_midi_file(
         main_rhythm_part.insert(insert_at, meter.TimeSignature(f"{time_sig}/4"))
         insert_at += int(time_sig) * int(section["numMeasures"])
 
-    if not has_polyrhythms and len(instruments) > 1:
+    if instruments and not has_polyrhythms and len(instruments) > 1:
         # Move all weak beats over to second track
         notes_and_rests_list_main = list(main_rhythm_part.notesAndRests)
         notes_and_rests_list_secondary = list(secondary_rhythm_part.notesAndRests)
