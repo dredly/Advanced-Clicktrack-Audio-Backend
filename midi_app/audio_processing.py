@@ -104,8 +104,16 @@ def make_midi_file(
         for idx, bpm in enumerate(note_bpms):
             if idx % 2 != 0:
                 continue
-            insert_at = 2 * main_rhythm_part_updated.notesAndRests.offsetMap()[idx].offset
+            insert_at = main_rhythm_part_updated.notesAndRests.offsetMap()[idx * 2].offset
             main_rhythm_part_updated.insert(insert_at, tempo.MetronomeMark(number=bpm))
+
+        # Add time signature markers
+        insert_at = 0
+        for section in section_data:
+            numerator = section["rhythms"][0]["timeSig"][0]
+            denominator = section["rhythms"][0]["timeSig"][1]
+            main_rhythm_part_updated.insert(insert_at, meter.TimeSignature(f"{numerator}/{denominator}"))
+            insert_at += (4 / denominator) * numerator * section["overallData"]["numMeasures"]
 
         clicktrack_stream.insert(0, main_rhythm_part_updated)
         clicktrack_stream.insert(0, secondary_rhythm_part_updated)
