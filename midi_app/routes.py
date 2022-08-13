@@ -8,6 +8,7 @@ from .audio_processing import (
 )
 from .file_management import upload_file
 from .instruments import all_instruments
+from .utils import log
 
 # Health check to quickly verify if the API is running or not
 @app.route("/")
@@ -18,16 +19,10 @@ def home():
 @app.route("/api/make_midi", methods=["POST"])
 def make_midi() -> dict:
     data = request.json
-    tempo_data = data["tempoData"]
     section_data = data["sectionData"]
-    # Temporary pass in default instruments for testing
-    midi_filename = make_midi_file(section_data, tempo_data)
-    midi_url = upload_file(midi_filename)
-    return (
-        {"url": midi_url}
-        if midi_url != "error"
-        else {"error": "Something went wrong with the file"}
-    )
+    note_bpms = data["noteBpms"]
+    midi_filename = make_midi_file(section_data, note_bpms)
+    return {'url': 'placeholder'}
 
 
 @app.route("/api/make_wav", methods=["POST"])

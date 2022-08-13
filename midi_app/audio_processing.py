@@ -7,34 +7,26 @@ from midi2audio import FluidSynth
 
 from .instruments import Instrument, all_instruments
 from .audio_processing_helpers import *
+from .utils import log
 
 test_instr_list = [all_instruments["drum_metallic"], all_instruments["percussive_clap"]]
 
 
 def make_midi_file(
-    section_data, tempo_data, instruments=None, separate=False
+    section_data, note_bpms, instruments=None
 ) -> str | List[str]:
     """Generates a midi file from the given metadata
-
-    If separate=True, then a separate file is generated for each track. These separate files can then be used to synthesise audio
-    using different soundfonts
     """
 
-    print("Called make_mid_file()")
+    log('Starting to make midi file')
     clicktrack_stream = stream.Stream()
     main_rhythm_part = stream.Part()
-    secondary_rhythm_part = stream.Part()
 
-    # Extract the bpm for each note into a list
-    bpms = [n["bpm"] for n in tempo_data]
+    # Check if the clicktrack contains any polyrhythms
+    has_polyrhythms = any(len(section['rhythms']) > 1 for section in section_data)
+    log(f'Has polyrhythms = {has_polyrhythms}')
 
-    # Extracts a list of boolean values to determine whether each note
-    # is accented
-    accents = [n["downBeat"] for n in tempo_data]
-    print("accents", accents)
-
-    # Find out if there are any polyrhthmic sections
-    has_polyrhythms = any(s["secondaryNumBeats"] for s in section_data)
+    secondary_rhythm_part = stream.Part() if has_polyrhythms else None
 
     # If an instrument is specified, use the given note otherwise default to middle C
     note_pitch_main = "C4"
@@ -46,145 +38,51 @@ def make_midi_file(
         else:
             note_pitch_secondary: str = instruments[0].playback_note
 
-    # Actually add the notes
+    # Add the notes
     for section in section_data:
-        main_rhythm_part.append(
-            make_section(
-                int(section["numBeats"]), int(section["numMeasures"]), note_pitch_main
-            )
-        )
-        if section["secondaryNumBeats"]:
-            secondary_rhythm_part.append(
-                make_secondary_rhythm_section(
-                    int(section["numBeats"]),
-                    int(section["numMeasures"]),
-                    note_pitch_secondary,
-                    int(section["secondaryNumBeats"]),
-                )
-            )
-        else:
-            secondary_rhythm_part.append(
-                make_silent_section(
-                    int(section["numBeats"]), int(section["numMeasures"])
-                )
-            )
+        main_rhythm_part.append(make_section(
+            time_sig=section["rhythms"][0]["timeSig"],
+            num_measures=section["overallData"]["numMeasures"],
+            note_pitch=note_pitch_main
+        ))
+        if has_polyrhythms:
+            #Check if this particular section is a polyrhythm
+            if len(section["rhythms"]) > 1:
+                secondary_rhythm_part.append(make_secondary_rhythm_section(
+                    primary_time_sig=section["rhythms"][0]["timeSig"],
+                    secondary_time_sig=section["rhythms"][1]["timeSig"],
+                    num_measures=section["overallData"]["numMeasures"],
+                    note_pitch=note_pitch_main
+                ))
+            else:
+                secondary_rhythm_part.append(make_silent_section(
+                    time_sig=section["rhythms"][0]["timeSig"],
+                    num_measures=section["overallData"]["numMeasures"]
+                ))
 
     # Add tempo markers
-    for idx, bpm in enumerate(bpms):
-        main_rhythm_part.insert(idx, tempo.MetronomeMark(number=bpm))
+    for idx, bpm in enumerate(note_bpms):
+        # Get the offset at which to insert the tempo marker, which can change depending on whether quarter,
+        # eighth, or half notes are being used
+        insert_at = main_rhythm_part.notes.offsetMap()[idx].offset
+        main_rhythm_part.insert(insert_at, tempo.MetronomeMark(number=bpm))
 
     # Add time signature markers
     insert_at = 0
-    for idx, section in enumerate(section_data):
-        time_sig = section["numBeats"]
-        main_rhythm_part.insert(insert_at, meter.TimeSignature(f"{time_sig}/4"))
-        insert_at += int(time_sig) * int(section["numMeasures"])
+    for section in section_data:
+        numerator = section["rhythms"][0]["timeSig"][0]
+        denominator = section["rhythms"][0]["timeSig"][1]
+        main_rhythm_part.insert(insert_at, meter.TimeSignature(f"{numerator}/{denominator}"))
+        insert_at += (4 / denominator) * numerator * section["overallData"]["numMeasures"]
 
-    if instruments and not has_polyrhythms and len(instruments) > 1:
-        # Move all weak beats over to second track
-        notes_and_rests_list_main = list(main_rhythm_part.notesAndRests)
-        notes_and_rests_list_secondary = list(secondary_rhythm_part.notesAndRests)
-        for i in range(len(notes_and_rests_list_main)):
-            note_idx = 2 * i
-            try:
-                if not accents[i]:
-                    # First turn non accented notes into rests in the first track
-                    notes_and_rests_list_main[note_idx] = note.Rest(quarterLength=0.5)
-                    notes_and_rests_list_secondary[note_idx] = note.Note(
-                        instruments[1].playback_note, quarterLength=0.5
-                    )
-            except:
-                pass
-
-        main_rhythm_part_updated = stream.Part()
-        main_rhythm_part_updated.append(notes_and_rests_list_main)
-        secondary_rhythm_part_updated = stream.Part()
-        secondary_rhythm_part_updated.append(notes_and_rests_list_secondary)
-
-        # Add tempo markers
-        for idx, bpm in enumerate(bpms):
-            main_rhythm_part_updated.insert(idx, tempo.MetronomeMark(number=bpm))
-
-        # Add time signature markers
-        insert_at = 0
-        for idx, section in enumerate(section_data):
-            time_sig = section["numBeats"]
-            main_rhythm_part_updated.insert(
-                insert_at, meter.TimeSignature(f"{time_sig}/4")
-            )
-            insert_at += int(time_sig) * int(section["numMeasures"])
-
-        clicktrack_stream.insert(0, main_rhythm_part_updated)
-        clicktrack_stream.insert(0, secondary_rhythm_part_updated)
-        clicktrack_stream.write("midi", "clicktrack.midi")
-
-        if separate:
-            mf1 = MidiFile("clicktrack.midi")
-            secondary_track = mf1.tracks[2]
-            # Mute the secondary track
-            note_messages = [
-                m for m in secondary_track if hasattr(m, "velocity") and m.velocity > 0
-            ]
-            for nm in note_messages:
-                nm.velocity = 0
-            mf1.save("main_part.midi")
-
-            mf2 = MidiFile("clicktrack.midi")
-            main_track = mf2.tracks[1]
-            # Mute the main track
-            note_messages = [
-                m for m in main_track if hasattr(m, "velocity") and m.velocity > 0
-            ]
-            for nm in note_messages:
-                nm.velocity = 0
-            mf2.save("secondary_part.midi")
-
-            return ["main_part.midi", "secondary_part.midi"]
+    #log(main_rhythm_part.notes.offsetMap())
 
     clicktrack_stream.insert(0, main_rhythm_part)
-    clicktrack_stream.insert(0, secondary_rhythm_part)
+    if has_polyrhythms:
+        clicktrack_stream.insert(0, secondary_rhythm_part)
     clicktrack_stream.write("midi", "clicktrack.midi")
 
-    mf = MidiFile("clicktrack.midi")
-
-    # Add accents by directly modifying the velocity property of midi messages
-    track = mf.tracks[1]
-    # Filters out the MetaMessages and rests
-    note_messages = [m for m in track if hasattr(m, "velocity") and m.velocity > 0]
-    for idx, acc in enumerate(accents):
-        if acc:
-            note_messages[idx].velocity = 120
-        else:
-            note_messages[idx].velocity = 80
-
-    mf.save("clicktrack.midi")
-
-    if separate:
-        # Both files need tracks[0] as it is the tempo track
-
-        mf1 = MidiFile("clicktrack.midi")
-        secondary_track = mf1.tracks[2]
-        # Mute the secondary track
-        note_messages = [
-            m for m in secondary_track if hasattr(m, "velocity") and m.velocity > 0
-        ]
-        for nm in note_messages:
-            nm.velocity = 0
-        mf1.save("main_part.midi")
-
-        mf2 = MidiFile("clicktrack.midi")
-        main_track = mf2.tracks[1]
-        # Mute the main track
-        note_messages = [
-            m for m in main_track if hasattr(m, "velocity") and m.velocity > 0
-        ]
-        for nm in note_messages:
-            nm.velocity = 0
-        mf2.save("secondary_part.midi")
-
-        return ["main_part.midi", "secondary_part.midi"]
-
-    return "clicktrack.midi"
+    return 'clicktack.midi'
 
 
 def make_wav_file(
