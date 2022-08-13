@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 import soundfile as sf
 
@@ -7,18 +5,8 @@ from music21 import stream, tempo, meter, note
 from mido import MidiFile, Message, MidiTrack
 from midi2audio import FluidSynth
 
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
-
 from .instruments import Instrument, all_instruments
 from .audio_processing_helpers import *
-
-from dotenv import load_dotenv
-
-load_dotenv()
-
-config = cloudinary.config(secure=True)
 
 test_instr_list = [all_instruments["drum_metallic"], all_instruments["percussive_clap"]]
 
