@@ -26,7 +26,7 @@ def make_midi_file(
     has_polyrhythms = any(len(section['rhythms']) > 1 for section in section_data)
     log(f'Has polyrhythms = {has_polyrhythms}')
 
-    secondary_rhythm_part = stream.Part() if has_polyrhythms else None
+    secondary_rhythm_part = stream.Part() if has_polyrhythms or (instruments and len(instruments) > 1) else None
 
     # If an instrument is specified, use the given note otherwise default to middle C
     note_pitch_main = "C4"
@@ -45,7 +45,7 @@ def make_midi_file(
             num_measures=section["overallData"]["numMeasures"],
             note_pitch=note_pitch_main
         ))
-        if has_polyrhythms:
+        if has_polyrhythms or (instruments and len(instruments) > 1):
             #Check if this particular section is a polyrhythm
             if len(section["rhythms"]) > 1:
                 secondary_rhythm_part.append(make_secondary_rhythm_section(
@@ -75,17 +75,53 @@ def make_midi_file(
         main_rhythm_part.insert(insert_at, meter.TimeSignature(f"{numerator}/{denominator}"))
         insert_at += (4 / denominator) * numerator * section["overallData"]["numMeasures"]
 
-    #log(main_rhythm_part.notes.offsetMap())
+    # Calculate which notes the accents fall on from section_data
+    accents: List[int] = get_accent_indices(section_data)
+
+    if instruments and not has_polyrhythms and len(instruments) > 1:
+        # Move all weak beats over to second track
+        notes_and_rests_list_main = list(main_rhythm_part.notesAndRests)
+        notes_and_rests_list_secondary = list(secondary_rhythm_part.notesAndRests)
+        for i in range(len(notes_and_rests_list_main)):
+            if i % 2 != 0:
+                continue
+            note_idx = i // 2
+            if note_idx not in accents:
+                weak_note = notes_and_rests_list_main[i]
+
+                # First turn non accented notes into rests in the first track
+                notes_and_rests_list_main[i] = note.Rest(quarterLength=weak_note.quarterLength)
+
+                #Then replace rest in second track with the note
+                notes_and_rests_list_secondary[i] = note.Note(instruments[1].playback_note, quarterLength=weak_note.quarterLength)
+        
+        main_rhythm_part_updated = stream.Part()
+        main_rhythm_part_updated.append(notes_and_rests_list_main)
+        secondary_rhythm_part_updated = stream.Part()
+        secondary_rhythm_part_updated.append(notes_and_rests_list_secondary)
+
+        # Add tempo markers
+        for idx, bpm in enumerate(note_bpms):
+            if idx % 2 != 0:
+                continue
+            insert_at = 2 * main_rhythm_part_updated.notesAndRests.offsetMap()[idx].offset
+            main_rhythm_part_updated.insert(insert_at, tempo.MetronomeMark(number=bpm))
+
+        clicktrack_stream.insert(0, main_rhythm_part_updated)
+        clicktrack_stream.insert(0, secondary_rhythm_part_updated)
+        clicktrack_stream.write("midi", "clicktrack.midi")
+
+        return 'clicktrack.midi'
+            
 
     clicktrack_stream.insert(0, main_rhythm_part)
-    if has_polyrhythms:
+    if has_polyrhythms or (instruments and len(instruments) > 1):
         clicktrack_stream.insert(0, secondary_rhythm_part)
     clicktrack_stream.write("midi", "clicktrack.midi")
 
     mf = MidiFile("clicktrack.midi")
 
-    # Calculate which notes the accents fall on from section_data
-    accents: List[int] = get_accent_indices(section_data)
+    
     
     # Add accents by directly modifying the velocity property of midi messages
     track = mf.tracks[1]

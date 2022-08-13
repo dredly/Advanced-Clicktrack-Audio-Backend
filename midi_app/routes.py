@@ -21,7 +21,10 @@ def make_midi() -> dict:
     data = request.json
     section_data = data["sectionData"]
     note_bpms = data["noteBpms"]
-    midi_filename = make_midi_file(section_data, note_bpms)
+    #Hardcode in some instruments for testing
+    midi_filename = make_midi_file(section_data, note_bpms, instruments=[
+        all_instruments["woodblock_high"], all_instruments["woodblock_lower"]
+    ])
     return {'url': 'placeholder'}
 
 
