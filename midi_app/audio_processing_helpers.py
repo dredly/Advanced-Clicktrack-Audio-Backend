@@ -32,3 +32,18 @@ def make_secondary_rhythm_section(
         for _ in range(secondary_time_sig[0] * num_measures)
     ]
     return list(np.concatenate(note_rest_pairs).flat)
+
+def get_accent_indices(section_data: List[dict]) -> List[int]:
+    indices =[]
+    notes_so_far = 0
+    for section in section_data:
+        accented_beats: List[int] = section["rhythms"][0]["accentedBeats"]
+        section_accents = []
+        for i in range(section["overallData"]["numMeasures"]):
+            measure_accents = [(i * section["rhythms"][0]["timeSig"][0]) + ab for ab in accented_beats]
+            section_accents.append(measure_accents)
+        section_accents_absolute = [notes_so_far + sa for sa in list(np.concatenate(section_accents).flat)]
+        indices.append(section_accents_absolute)
+        notes_in_section = section["overallData"]["numMeasures"] * section["rhythms"][0]["timeSig"][0]
+        notes_so_far += notes_in_section
+    return list(np.concatenate(indices).flat)

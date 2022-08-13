@@ -52,7 +52,7 @@ def make_midi_file(
                     primary_time_sig=section["rhythms"][0]["timeSig"],
                     secondary_time_sig=section["rhythms"][1]["timeSig"],
                     num_measures=section["overallData"]["numMeasures"],
-                    note_pitch=note_pitch_main
+                    note_pitch=note_pitch_secondary
                 ))
             else:
                 secondary_rhythm_part.append(make_silent_section(
@@ -82,12 +82,29 @@ def make_midi_file(
         clicktrack_stream.insert(0, secondary_rhythm_part)
     clicktrack_stream.write("midi", "clicktrack.midi")
 
-    return 'clicktack.midi'
+    mf = MidiFile("clicktrack.midi")
+
+    # Calculate which notes the accents fall on from section_data
+    accents: List[int] = get_accent_indices(section_data)
+    
+    # Add accents by directly modifying the velocity property of midi messages
+    track = mf.tracks[1]
+    # Filters out the MetaMessages and rests
+    note_messages = [m for m in track if hasattr(m, "velocity") and m.velocity > 0]
+    for idx, nm in enumerate(note_messages):
+        if idx in accents:
+            nm.velocity = 120
+        else:
+            nm.velocity = 80
+
+    mf.save("clicktrack.midi")
+
+    return 'clicktrack.midi'
 
 
 def make_wav_file(
     section_data: List[dict],
-    tempo_data: List[dict],
+    note_bpms: List[int],
     instrument_vals: List[str] = ["woodblock_high"],
 ) -> str:
     """Takes metadata and creates a midi file with it, which is then used along with a soundfont
@@ -105,7 +122,7 @@ def make_wav_file(
     # Check if a second instrument has been specified
     if len(instruments) > 1:
         # Get a different midi file for each instrument, then combine them after
-        midi_filenames = make_midi_file(section_data, tempo_data, instruments, True)
+        midi_filenames = make_midi_file(section_data, note_bpms, instruments)
         for idx, mfn in enumerate(midi_filenames):
             fs = FluidSynth(instruments[idx].soundfont_file)
             fs.midi_to_audio(mfn, f"part{idx + 1}.wav")
@@ -115,7 +132,7 @@ def make_wav_file(
         sf.write("output.wav", wav_data, sample_rate)
 
     else:
-        midi_filename = make_midi_file(section_data, tempo_data, instruments)
+        midi_filename = make_midi_file(section_data, note_bpms, instruments)
 
         fs = FluidSynth(instruments[0].soundfont_file)
 

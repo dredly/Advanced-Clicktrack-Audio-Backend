@@ -28,10 +28,10 @@ def make_midi() -> dict:
 @app.route("/api/make_wav", methods=["POST"])
 def make_wav() -> dict:
     data = request.json
-    tempo_data = data["tempoData"]
     section_data = data["sectionData"]
+    note_bpms = data["noteBpms"]
     instrument_vals = data["instruments"]
-    wav_filename = make_wav_file(section_data, tempo_data, instrument_vals)
+    wav_filename = make_wav_file(section_data, note_bpms, instrument_vals)
     wav_url = upload_file(wav_filename)
     return (
         {"url": wav_url}
