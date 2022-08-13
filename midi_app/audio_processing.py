@@ -119,18 +119,60 @@ def make_midi_file(
         clicktrack_stream.insert(0, secondary_rhythm_part_updated)
         clicktrack_stream.write("midi", "clicktrack.midi")
 
-        return 'clicktrack.midi'
-            
+        mf1 = MidiFile("clicktrack.midi")
+        secondary_track = mf1.tracks[2]
+        # Mute the secondary track
+        note_messages = [
+            m for m in secondary_track if hasattr(m, "velocity") and m.velocity > 0
+        ]
+        for nm in note_messages:
+            nm.velocity = 0
+        mf1.save("main_part.midi")
 
+        mf2 = MidiFile("clicktrack.midi")
+        main_track = mf2.tracks[1]
+        # Mute the main track
+        note_messages = [
+            m for m in main_track if hasattr(m, "velocity") and m.velocity > 0
+        ]
+        for nm in note_messages:
+            nm.velocity = 0
+        mf2.save("secondary_part.midi")
+
+        return ["main_part.midi", "secondary_part.midi"]    
+            
     clicktrack_stream.insert(0, main_rhythm_part)
     if has_polyrhythms or (instruments and len(instruments) > 1):
         clicktrack_stream.insert(0, secondary_rhythm_part)
     clicktrack_stream.write("midi", "clicktrack.midi")
 
+    # Still need to split into 2 midi files in this case
+    # Accents should hopefully be preserved
+    if has_polyrhythms and instruments and len(instruments) > 1:
+        mf1 = MidiFile("clicktrack.midi")
+        secondary_track = mf1.tracks[2]
+        # Mute the secondary track
+        note_messages = [
+            m for m in secondary_track if hasattr(m, "velocity") and m.velocity > 0
+        ]
+        for nm in note_messages:
+            nm.velocity = 0
+        mf1.save("main_part.midi")
+
+        mf2 = MidiFile("clicktrack.midi")
+        main_track = mf2.tracks[1]
+        # Mute the main track
+        note_messages = [
+            m for m in main_track if hasattr(m, "velocity") and m.velocity > 0
+        ]
+        for nm in note_messages:
+            nm.velocity = 0
+        mf2.save("secondary_part.midi")
+
+        return ["main_part.midi", "secondary_part.midi"]
+
     mf = MidiFile("clicktrack.midi")
 
-    
-    
     # Add accents by directly modifying the velocity property of midi messages
     track = mf.tracks[1]
     # Filters out the MetaMessages and rests

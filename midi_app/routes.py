@@ -22,10 +22,9 @@ def make_midi() -> dict:
     section_data = data["sectionData"]
     note_bpms = data["noteBpms"]
     #Hardcode in some instruments for testing
-    midi_filename = make_midi_file(section_data, note_bpms, instruments=[
-        all_instruments["woodblock_high"], all_instruments["woodblock_lower"]
-    ])
-    return {'url': 'placeholder'}
+    midi_filename = make_midi_file(section_data, note_bpms)
+    midi_url = upload_file(midi_filename)
+    return {'url': midi_url} if midi_url != "error" else {"error": "Something went wrong with the file"}
 
 
 @app.route("/api/make_wav", methods=["POST"])
