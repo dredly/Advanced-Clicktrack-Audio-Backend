@@ -21,10 +21,14 @@ def make_midi() -> dict:
     data = request.json
     section_data = data["sectionData"]
     note_bpms = data["noteBpms"]
-    #Hardcode in some instruments for testing
+    # Hardcode in some instruments for testing
     midi_filename = make_midi_file(section_data, note_bpms)
     midi_url = upload_file(midi_filename)
-    return {'url': midi_url} if midi_url != "error" else {"error": "Something went wrong with the file"}
+    return (
+        {"url": midi_url}
+        if midi_url != "error"
+        else {"error": "Something went wrong with the file"}
+    )
 
 
 @app.route("/api/make_wav", methods=["POST"])

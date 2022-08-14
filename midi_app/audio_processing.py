@@ -1,32 +1,33 @@
-import numpy as np
-import soundfile as sf
+import subprocess
 
+import soundfile as sf
 from music21 import stream, tempo, meter, note
-from mido import MidiFile, Message, MidiTrack
+from mido import MidiFile
 from midi2audio import FluidSynth
 
-from .instruments import Instrument, all_instruments
+from .instruments import all_instruments
 from .audio_processing_helpers import *
 from .utils import log
 
 test_instr_list = [all_instruments["drum_metallic"], all_instruments["percussive_clap"]]
 
 
-def make_midi_file(
-    section_data, note_bpms, instruments=None
-) -> str | List[str]:
-    """Generates a midi file from the given metadata
-    """
+def make_midi_file(section_data, note_bpms, instruments=None) -> str | List[str]:
+    """Generates a midi file from the given metadata"""
 
-    log('Starting to make midi file')
+    log("Starting to make midi file")
     clicktrack_stream = stream.Stream()
     main_rhythm_part = stream.Part()
 
     # Check if the clicktrack contains any polyrhythms
-    has_polyrhythms = any(len(section['rhythms']) > 1 for section in section_data)
-    log(f'Has polyrhythms = {has_polyrhythms}')
+    has_polyrhythms = any(len(section["rhythms"]) > 1 for section in section_data)
+    log(f"Has polyrhythms = {has_polyrhythms}")
 
-    secondary_rhythm_part = stream.Part() if has_polyrhythms or (instruments and len(instruments) > 1) else None
+    secondary_rhythm_part = (
+        stream.Part()
+        if has_polyrhythms or (instruments and len(instruments) > 1)
+        else None
+    )
 
     # If an instrument is specified, use the given note otherwise default to middle C
     note_pitch_main = "C4"
@@ -40,25 +41,31 @@ def make_midi_file(
 
     # Add the notes
     for section in section_data:
-        main_rhythm_part.append(make_section(
-            time_sig=section["rhythms"][0]["timeSig"],
-            num_measures=section["overallData"]["numMeasures"],
-            note_pitch=note_pitch_main
-        ))
+        main_rhythm_part.append(
+            make_section(
+                time_sig=section["rhythms"][0]["timeSig"],
+                num_measures=section["overallData"]["numMeasures"],
+                note_pitch=note_pitch_main,
+            )
+        )
         if has_polyrhythms or (instruments and len(instruments) > 1):
-            #Check if this particular section is a polyrhythm
+            # Check if this particular section is a polyrhythm
             if len(section["rhythms"]) > 1:
-                secondary_rhythm_part.append(make_secondary_rhythm_section(
-                    primary_time_sig=section["rhythms"][0]["timeSig"],
-                    secondary_time_sig=section["rhythms"][1]["timeSig"],
-                    num_measures=section["overallData"]["numMeasures"],
-                    note_pitch=note_pitch_secondary
-                ))
+                secondary_rhythm_part.append(
+                    make_secondary_rhythm_section(
+                        primary_time_sig=section["rhythms"][0]["timeSig"],
+                        secondary_time_sig=section["rhythms"][1]["timeSig"],
+                        num_measures=section["overallData"]["numMeasures"],
+                        note_pitch=note_pitch_secondary,
+                    )
+                )
             else:
-                secondary_rhythm_part.append(make_silent_section(
-                    time_sig=section["rhythms"][0]["timeSig"],
-                    num_measures=section["overallData"]["numMeasures"]
-                ))
+                secondary_rhythm_part.append(
+                    make_silent_section(
+                        time_sig=section["rhythms"][0]["timeSig"],
+                        num_measures=section["overallData"]["numMeasures"],
+                    )
+                )
 
     # Add tempo markers
     for idx, bpm in enumerate(note_bpms):
@@ -72,8 +79,12 @@ def make_midi_file(
     for section in section_data:
         numerator = section["rhythms"][0]["timeSig"][0]
         denominator = section["rhythms"][0]["timeSig"][1]
-        main_rhythm_part.insert(insert_at, meter.TimeSignature(f"{numerator}/{denominator}"))
-        insert_at += (4 / denominator) * numerator * section["overallData"]["numMeasures"]
+        main_rhythm_part.insert(
+            insert_at, meter.TimeSignature(f"{numerator}/{denominator}")
+        )
+        insert_at += (
+            (4 / denominator) * numerator * section["overallData"]["numMeasures"]
+        )
 
     # Calculate which notes the accents fall on from section_data
     accents: List[int] = get_accent_indices(section_data)
@@ -90,11 +101,15 @@ def make_midi_file(
                 weak_note = notes_and_rests_list_main[i]
 
                 # First turn non accented notes into rests in the first track
-                notes_and_rests_list_main[i] = note.Rest(quarterLength=weak_note.quarterLength)
+                notes_and_rests_list_main[i] = note.Rest(
+                    quarterLength=weak_note.quarterLength
+                )
 
-                #Then replace rest in second track with the note
-                notes_and_rests_list_secondary[i] = note.Note(instruments[1].playback_note, quarterLength=weak_note.quarterLength)
-        
+                # Then replace rest in second track with the note
+                notes_and_rests_list_secondary[i] = note.Note(
+                    instruments[1].playback_note, quarterLength=weak_note.quarterLength
+                )
+
         main_rhythm_part_updated = stream.Part()
         main_rhythm_part_updated.append(notes_and_rests_list_main)
         secondary_rhythm_part_updated = stream.Part()
@@ -104,7 +119,9 @@ def make_midi_file(
         for idx, bpm in enumerate(note_bpms):
             if idx % 2 != 0:
                 continue
-            insert_at = main_rhythm_part_updated.notesAndRests.offsetMap()[idx * 2].offset
+            insert_at = main_rhythm_part_updated.notesAndRests.offsetMap()[
+                idx * 2
+            ].offset
             main_rhythm_part_updated.insert(insert_at, tempo.MetronomeMark(number=bpm))
 
         # Add time signature markers
@@ -112,8 +129,12 @@ def make_midi_file(
         for section in section_data:
             numerator = section["rhythms"][0]["timeSig"][0]
             denominator = section["rhythms"][0]["timeSig"][1]
-            main_rhythm_part_updated.insert(insert_at, meter.TimeSignature(f"{numerator}/{denominator}"))
-            insert_at += (4 / denominator) * numerator * section["overallData"]["numMeasures"]
+            main_rhythm_part_updated.insert(
+                insert_at, meter.TimeSignature(f"{numerator}/{denominator}")
+            )
+            insert_at += (
+                (4 / denominator) * numerator * section["overallData"]["numMeasures"]
+            )
 
         clicktrack_stream.insert(0, main_rhythm_part_updated)
         clicktrack_stream.insert(0, secondary_rhythm_part_updated)
@@ -139,8 +160,8 @@ def make_midi_file(
             nm.velocity = 0
         mf2.save("secondary_part.midi")
 
-        return ["main_part.midi", "secondary_part.midi"]    
-            
+        return ["main_part.midi", "secondary_part.midi"]
+
     clicktrack_stream.insert(0, main_rhythm_part)
     if has_polyrhythms or (instruments and len(instruments) > 1):
         clicktrack_stream.insert(0, secondary_rhythm_part)
@@ -159,7 +180,6 @@ def make_midi_file(
             nm.velocity = 80
 
     mf.save("clicktrack.midi")
-
 
     # Still need to split into 2 midi files in this case
     # Accents should hopefully be preserved
@@ -186,7 +206,7 @@ def make_midi_file(
 
         return ["main_part.midi", "secondary_part.midi"]
 
-    return 'clicktrack.midi'
+    return "clicktrack.midi"
 
 
 def make_wav_file(
@@ -211,8 +231,19 @@ def make_wav_file(
         # Get a different midi file for each instrument, then combine them after
         midi_filenames = make_midi_file(section_data, note_bpms, instruments)
         for idx, mfn in enumerate(midi_filenames):
-            fs = FluidSynth(instruments[idx].soundfont_file)
-            fs.midi_to_audio(mfn, f"part{idx + 1}.wav")
+            soundfont_filename = instruments[idx].soundfont_file
+            subprocess.run(
+            [
+                "fluidsynth",
+                "-ni",
+                "-g",
+                "1",
+                soundfont_filename,
+                mfn,
+                "-F",
+                f"part{idx + 1}.wav",
+            ]
+        )
         wav_data1, sample_rate = sf.read("part1.wav")
         wav_data2, sample_rate = sf.read("part2.wav")
         wav_data = wav_data1 + wav_data2
@@ -223,7 +254,18 @@ def make_wav_file(
 
         fs = FluidSynth(instruments[0].soundfont_file)
 
-        fs.midi_to_audio(midi_filename, "output.wav")
+        subprocess.run(
+            [
+                "fluidsynth",
+                "-ni",
+                "-g",
+                "1",
+                instruments[0].soundfont_file,
+                midi_filename,
+                "-F",
+                "output.wav",
+            ]
+        )
 
     return "output.wav"
 
