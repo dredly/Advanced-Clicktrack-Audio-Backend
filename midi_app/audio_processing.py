@@ -146,6 +146,21 @@ def make_midi_file(
         clicktrack_stream.insert(0, secondary_rhythm_part)
     clicktrack_stream.write("midi", "clicktrack.midi")
 
+    mf = MidiFile("clicktrack.midi")
+
+    # Add accents by directly modifying the velocity property of midi messages
+    track = mf.tracks[1]
+    # Filters out the MetaMessages and rests
+    note_messages = [m for m in track if hasattr(m, "velocity") and m.velocity > 0]
+    for idx, nm in enumerate(note_messages):
+        if idx in accents:
+            nm.velocity = 120
+        else:
+            nm.velocity = 80
+
+    mf.save("clicktrack.midi")
+
+
     # Still need to split into 2 midi files in this case
     # Accents should hopefully be preserved
     if has_polyrhythms and instruments and len(instruments) > 1:
@@ -170,20 +185,6 @@ def make_midi_file(
         mf2.save("secondary_part.midi")
 
         return ["main_part.midi", "secondary_part.midi"]
-
-    mf = MidiFile("clicktrack.midi")
-
-    # Add accents by directly modifying the velocity property of midi messages
-    track = mf.tracks[1]
-    # Filters out the MetaMessages and rests
-    note_messages = [m for m in track if hasattr(m, "velocity") and m.velocity > 0]
-    for idx, nm in enumerate(note_messages):
-        if idx in accents:
-            nm.velocity = 120
-        else:
-            nm.velocity = 80
-
-    mf.save("clicktrack.midi")
 
     return 'clicktrack.midi'
 
