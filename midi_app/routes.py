@@ -2,13 +2,10 @@ from flask import request
 from midi_app import app
 from .audio_processing import (
     make_midi_file,
-    make_wav_file,
-    make_flac_file,
+    make_file_with_fluidsynth,
     make_ogg_file,
 )
 from .file_management import upload_file
-from .instruments import all_instruments
-from .utils import log
 
 # Health check to quickly verify if the API is running or not
 @app.route("/")
@@ -21,7 +18,6 @@ def make_midi() -> dict:
     data = request.json
     section_data = data["sectionData"]
     note_bpms = data["noteBpms"]
-    # Hardcode in some instruments for testing
     midi_filename = make_midi_file(section_data, note_bpms)
     midi_url = upload_file(midi_filename)
     return (
@@ -37,7 +33,7 @@ def make_wav() -> dict:
     section_data = data["sectionData"]
     note_bpms = data["noteBpms"]
     instrument_vals = data["instruments"]
-    wav_filename = make_wav_file(section_data, note_bpms, instrument_vals)
+    wav_filename = make_file_with_fluidsynth(section_data, note_bpms, 'wav', instrument_vals)
     wav_url = upload_file(wav_filename)
     return (
         {"url": wav_url}
@@ -49,10 +45,10 @@ def make_wav() -> dict:
 @app.route("/api/make_flac", methods=["POST"])
 def make_flac() -> dict:
     data = request.json
-    tempo_data = data["tempoData"]
     section_data = data["sectionData"]
+    note_bpms = data["noteBpms"]
     instrument_vals = data["instruments"]
-    flac_filename = make_flac_file(section_data, tempo_data, instrument_vals)
+    flac_filename = make_file_with_fluidsynth(section_data, note_bpms, 'flac', instrument_vals)
     flac_url = upload_file(flac_filename)
     return (
         {"url": flac_url}
@@ -64,10 +60,10 @@ def make_flac() -> dict:
 @app.route("/api/make_ogg", methods=["POST"])
 def make_ogg() -> dict:
     data = request.json
-    tempo_data = data["tempoData"]
     section_data = data["sectionData"]
+    note_bpms = data["noteBpms"]
     instrument_vals = data["instruments"]
-    ogg_filename = make_ogg_file(section_data, tempo_data, instrument_vals)
+    ogg_filename = make_ogg_file(section_data, note_bpms, instrument_vals)
     ogg_url = upload_file(ogg_filename)
     return (
         {"url": ogg_url}

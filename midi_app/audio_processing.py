@@ -3,7 +3,6 @@ import subprocess
 import soundfile as sf
 from music21 import stream, tempo, meter, note
 from mido import MidiFile
-from midi2audio import FluidSynth
 
 from .instruments import all_instruments
 from .audio_processing_helpers import *
@@ -209,9 +208,10 @@ def make_midi_file(section_data, note_bpms, instruments=None) -> str | List[str]
     return "clicktrack.midi"
 
 
-def make_wav_file(
+def make_file_with_fluidsynth(
     section_data: List[dict],
     note_bpms: List[int],
+    file_format: str,
     instrument_vals: List[str] = ["woodblock_high"],
 ) -> str:
     """Takes metadata and creates a midi file with it, which is then used along with a soundfont
@@ -241,19 +241,16 @@ def make_wav_file(
                 soundfont_filename,
                 mfn,
                 "-F",
-                f"part{idx + 1}.wav",
+                f"part{idx + 1}.{file_format}",
             ]
         )
-        wav_data1, sample_rate = sf.read("part1.wav")
-        wav_data2, sample_rate = sf.read("part2.wav")
-        wav_data = wav_data1 + wav_data2
-        sf.write("output.wav", wav_data, sample_rate)
+        audio_data1, sample_rate = sf.read(f"part1.{file_format}")
+        audio_data2, sample_rate = sf.read(f"part2.{file_format}")
+        audio_data = audio_data1 + audio_data2
+        sf.write(f"output.{file_format}", audio_data, sample_rate)
 
     else:
         midi_filename = make_midi_file(section_data, note_bpms, instruments)
-
-        fs = FluidSynth(instruments[0].soundfont_file)
-
         subprocess.run(
             [
                 "fluidsynth",
@@ -263,44 +260,17 @@ def make_wav_file(
                 instruments[0].soundfont_file,
                 midi_filename,
                 "-F",
-                "output.wav",
+                f"output.{file_format}",
             ]
         )
 
-    return "output.wav"
+    return f"output.{file_format}"
 
 
-def make_flac_file(
-    section_data, tempo_data, instrument_vals: List[str] = ["woodblock_high"]
-) -> str:
-
-    instruments = [all_instruments[iv] for iv in instrument_vals]
-    # Check if a second instrument has been specified
-    if len(instruments) > 1:
-        # Get a different midi file for each instrument, then combine them after
-        midi_filenames = make_midi_file(section_data, tempo_data, instruments, True)
-        for idx, mfn in enumerate(midi_filenames):
-            fs = FluidSynth(instruments[idx].soundfont_file)
-            fs.midi_to_audio(mfn, f"part{idx + 1}.flac")
-        flac_data1, sample_rate = sf.read("part1.flac")
-        flac_data2, sample_rate = sf.read("part2.flac")
-        flac_data = flac_data1 + flac_data2
-        sf.write("output.flac", flac_data, sample_rate)
-
-    else:
-        midi_filename = make_midi_file(section_data, tempo_data, instruments)
-
-        fs = FluidSynth(instruments[0].soundfont_file)
-
-        fs.midi_to_audio(midi_filename, "output.flac")
-
-    return "output.flac"
-
-
-def make_ogg_file(section_data, tempo_data, instrument_vals=["woodblock_high"]) -> str:
+def make_ogg_file(section_data, note_bpms, instrument_vals=["woodblock_high"]) -> str:
 
     # First synthesise to a flac file (because should be faster than wav and will be further compressed anyway)
-    flac_filename = make_flac_file(section_data, tempo_data, instrument_vals)
+    flac_filename = make_file_with_fluidsynth(section_data, note_bpms, 'flac', instrument_vals)
 
     data, samplerate = sf.read(flac_filename)
     sf.write("output.ogg", data, samplerate)
