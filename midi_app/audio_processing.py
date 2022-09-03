@@ -6,7 +6,6 @@ from mido import MidiFile
 
 from .instruments import all_instruments
 from .audio_processing_helpers import *
-from .utils import log
 
 test_instr_list = [all_instruments["drum_metallic"], all_instruments["percussive_clap"]]
 
@@ -14,13 +13,11 @@ test_instr_list = [all_instruments["drum_metallic"], all_instruments["percussive
 def make_midi_file(section_data, note_bpms, instruments=None) -> str | List[str]:
     """Generates a midi file from the given metadata"""
 
-    log("Starting to make midi file")
     clicktrack_stream = stream.Stream()
     main_rhythm_part = stream.Part()
 
     # Check if the clicktrack contains any polyrhythms
     has_polyrhythms = any(len(section["rhythms"]) > 1 for section in section_data)
-    log(f"Has polyrhythms = {has_polyrhythms}")
 
     secondary_rhythm_part = (
         stream.Part()

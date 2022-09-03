@@ -8,7 +8,7 @@ from .audio_processing import (
 from .file_management import upload_file
 
 # Health check to quickly verify if the API is running or not
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def home():
     return {"marco": "polo"}
 
