@@ -1,4 +1,5 @@
 import subprocess
+import time
 
 import soundfile as sf
 from music21 import stream, tempo, meter, note
@@ -204,7 +205,6 @@ def make_midi_file(section_data, note_bpms, instruments=None) -> str | List[str]
 
     return "clicktrack.midi"
 
-
 def make_file_with_fluidsynth(
     section_data: List[dict],
     note_bpms: List[int],
@@ -218,6 +218,10 @@ def make_file_with_fluidsynth(
 
     Returns the name of the saved wav file.
     """
+
+    start_time = time.time()
+    midi_time = 0
+    audio_time = 0
 
     instruments = [all_instruments[iv] for iv in instrument_vals]
     # First make a midi which can then be synthesised into a wav
@@ -248,6 +252,7 @@ def make_file_with_fluidsynth(
 
     else:
         midi_filename = make_midi_file(section_data, note_bpms, instruments)
+        midi_time = time.time()
         subprocess.run(
             [
                 "fluidsynth",
@@ -260,8 +265,12 @@ def make_file_with_fluidsynth(
                 f"output.{file_format}",
             ]
         )
+        audio_time = time.time()
 
-    return f"output.{file_format}"
+    midi_time_taken = midi_time - start_time
+    audio_time_taken = audio_time - midi_time
+
+    return f"output.{file_format}", midi_time_taken, audio_time_taken
 
 
 def make_ogg_file(section_data, note_bpms, instrument_vals=["woodblock_high"]) -> str:
