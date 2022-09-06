@@ -7,6 +7,7 @@ from .audio_processing import (
     make_ogg_file,
 )
 from .file_management import upload_file
+from .instruments import all_instruments
 
 from .log import log
 import time

@@ -205,46 +205,67 @@ def make_midi_file(section_data, note_bpms, instruments=None) -> str | List[str]
 
     return "clicktrack.midi"
 
-def make_midi_file_v2(section_data, note_bpms, instruments=None):
-    """Generates a midi file from the given metadata
-    
-    Temporarily can only do with one instrument, and no polyrhthms
-    
-    """
+def make_midi_file_v2(section_data, note_bpms, instruments=None) -> str | List[str]:
+    """Generates a midi file from the given metadata"""
 
-    clicktrack_stream = stream.Stream()
-    main_rhythm_part = stream.Part()
+    # Check if the clicktrack contains any polyrhythms
+    has_polyrhythms = any(len(section["rhythms"]) > 1 for section in section_data)
 
+    # If an instrument is specified, use the given note otherwise default to middle C
     note_pitch_main = "C4"
+    note_pitch_secondary = "C4"
     if instruments:
         note_pitch_main: str = instruments[0].playback_note
+        if len(instruments) > 1:
+            note_pitch_secondary: str = instruments[1].playback_note
+        else:
+            note_pitch_secondary: str = instruments[0].playback_note
+
+    
 
     # From note bpms, generate a tempo_dict of format {note_idx: bpm}, so that we only put tempo markers where
     # the tempo actually changes
     tempo_dict: dict = get_tempo_dict(note_bpms)
     notes_so_far = 0
 
-    for section in section_data:
-        notes_so_far, section_notes = make_section_v2(
-            notes_so_far, 
-            section["rhythms"][0]["timeSig"], 
-            section["overallData"]["numMeasures"], 
-            section["rhythms"][0]["accentedBeats"],
-            note_pitch_main, 
-            tempo_dict
-        )
-        main_rhythm_part.append(
-            section_notes
-        )
+    #The simplest case, where we dont need to worry about a second part
+    if len(instruments) == 1 and not has_polyrhythms:
+        clicktrack_stream = stream.Stream()
+        for section in section_data:
+            notes_so_far, section_notes = make_section_v2(
+                notes_so_far, 
+                section["rhythms"][0]["timeSig"], 
+                section["overallData"]["numMeasures"], 
+                section["rhythms"][0]["accentedBeats"],
+                note_pitch_main, 
+                tempo_dict
+            )
+            clicktrack_stream.append(section_notes)
+        
+        clicktrack_stream.write("midi", "clicktrack.midi")
+        return "clicktrack.midi"
 
-    clicktrack_stream.insert(0, main_rhythm_part)
-    clicktrack_stream.write("midi", "clicktrack.midi")
+    #A separate part made for each instrument
+    elif len(instruments) > 1 and not has_polyrhythms:
+        main_stream = stream.Stream()
+        secondary_stream = stream.Stream()
+        for section in section_data:
+            notes_so_far, section_notes = make_section_separated(
+                notes_so_far, 
+                section["rhythms"][0]["timeSig"], 
+                section["overallData"]["numMeasures"], 
+                section["rhythms"][0]["accentedBeats"],
+                note_pitch_main,
+                note_pitch_secondary, 
+                tempo_dict
+            )
+            main_stream.append(section_notes["main"])
+            secondary_stream.append(section_notes["secondary"])
 
-    return "clicktrack.midi"
-
-def make_midi_file_v3(section_data, note_bpms):
-    pass
-
+        main_stream.write("midi", "main.midi")
+        secondary_stream.write("midi", "secondary.midi")
+        return ["main.midi", "secondary.midi"]
+    
 def make_file_with_fluidsynth(
     section_data: List[dict],
     note_bpms: List[int],

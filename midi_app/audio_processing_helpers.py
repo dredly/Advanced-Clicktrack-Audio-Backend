@@ -78,7 +78,7 @@ def make_section_v2(
     accented_notes: List[int], 
     note_pitch: str, 
     tempo_dict: dict,
-) -> list:
+):
     quarter_length = 4 / time_sig[1]
     #Start with a time signature marker
     numerator = time_sig[0]
@@ -97,6 +97,51 @@ def make_section_v2(
             note.Rest(quarterLength=0.5*quarter_length),
         ])
     return notes_so_far, result
+
+def make_section_separated(
+    num_notes_before: int,
+    time_sig: List[int], 
+    num_measures: int,
+    accented_notes: List[int], 
+    note_pitch_primary: str, 
+    note_pitch_secondary: str,
+    tempo_dict: dict,
+):
+    quarter_length = 4 / time_sig[1]
+    numerator = time_sig[0]
+    denominator = time_sig[1]
+    notes_so_far = num_notes_before + time_sig[0] * num_measures
+    main_rhythm = [meter.TimeSignature(f"{numerator}/{denominator}")]
+    secondary_rhythm = [meter.TimeSignature(f"{numerator}/{denominator}")]
+    for i in range(time_sig[0] * num_measures):
+        #Check if there is a tempo marker to add
+        if num_notes_before + i in tempo_dict.keys():
+            main_rhythm.append(tempo.MetronomeMark(number=tempo_dict[num_notes_before + i]))
+            secondary_rhythm.append(tempo.MetronomeMark(number=tempo_dict[num_notes_before + i]))
+        is_accented = i % time_sig[0] in accented_notes
+        if is_accented:
+            click_note = note.Note(note_pitch_primary, quarterLength=0.5*quarter_length)
+            main_rhythm.extend([
+                click_note,
+                note.Rest(quarterLength=0.5*quarter_length),
+            ])
+            secondary_rhythm.extend([
+                #May need to change this to 2 rests of 0.5 * quarter_length instead
+                note.Rest(quarterLength=quarter_length)
+            ])
+        else:
+            click_note = note.Note(note_pitch_secondary, quarterLength=0.5*quarter_length)
+            main_rhythm.extend([
+                #May need to change this to 2 rests of 0.5 * quarter_length instead
+                note.Rest(quarterLength=quarter_length)
+            ])
+            secondary_rhythm.extend([
+                click_note,
+                note.Rest(quarterLength=0.5*quarter_length),
+            ])
+    return notes_so_far, {"main": main_rhythm, "secondary": secondary_rhythm}
+
+    
 
 
 #Just for testing the functionality
