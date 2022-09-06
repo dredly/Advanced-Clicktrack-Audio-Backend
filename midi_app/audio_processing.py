@@ -228,8 +228,8 @@ def make_midi_file_v2(section_data, note_bpms, instruments=None) -> str | List[s
     tempo_dict: dict = get_tempo_dict(note_bpms)
     notes_so_far = 0
 
-    #The simplest case, where we dont need to worry about a second part
-    if len(instruments) == 1 and not has_polyrhythms:
+    # The simplest case, where we dont need to worry about a second part
+    if (not instruments or len(instruments) == 1) and not has_polyrhythms:
         clicktrack_stream = stream.Stream()
         for section in section_data:
             notes_so_far, section_notes = make_section_v2(
@@ -245,8 +245,8 @@ def make_midi_file_v2(section_data, note_bpms, instruments=None) -> str | List[s
         clicktrack_stream.write("midi", "clicktrack.midi")
         return "clicktrack.midi"
 
-    #A separate part made for each instrument
-    elif len(instruments) > 1 and not has_polyrhythms:
+    # In this case a separate stream made for each instrument
+    elif instruments and len(instruments) > 1 and not has_polyrhythms:
         main_stream = stream.Stream()
         secondary_stream = stream.Stream()
         for section in section_data:
@@ -265,6 +265,34 @@ def make_midi_file_v2(section_data, note_bpms, instruments=None) -> str | List[s
         main_stream.write("midi", "main.midi")
         secondary_stream.write("midi", "secondary.midi")
         return ["main.midi", "secondary.midi"]
+    
+    # In this case a separate part is made for each instrument but then they are combined
+    elif (not instruments or len(instruments) == 1) and has_polyrhythms:
+        clicktrack_stream = stream.Stream()
+        main_rhythm_part = stream.Part()
+        secondary_rhythm_part = stream.Part()
+
+        for section in section_data:
+            time_sigs = [r["timeSig"] for r in section["rhythms"]]
+            notes_so_far, section_notes = make_section_polyrhythm_one_instrument(
+                notes_so_far,
+                time_sigs,
+                section["overallData"]["numMeasures"],
+                section["rhythms"][0]["accentedBeats"],
+                note_pitch_main,
+                tempo_dict
+            )
+            main_rhythm_part.append(section_notes["main"])
+            secondary_rhythm_part.append(section_notes["secondary"])
+
+        #Combine the two parts
+        clicktrack_stream.insert(0, main_rhythm_part)
+        clicktrack_stream.insert(0, secondary_rhythm_part)
+        clicktrack_stream.write("midi", "clicktrack.midi")
+        return "clicktrack.midi"
+
+    else:
+        return "error"
     
 def make_file_with_fluidsynth(
     section_data: List[dict],
