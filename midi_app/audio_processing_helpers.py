@@ -74,7 +74,8 @@ def get_tempo_dict(note_bpms: List[int]) -> dict:
 def make_section_v2(
     num_notes_before: int,
     time_sig: List[int], 
-    num_measures: int, 
+    num_measures: int,
+    accented_notes: List[int], 
     note_pitch: str, 
     tempo_dict: dict,
 ) -> list:
@@ -88,8 +89,11 @@ def make_section_v2(
         #Check if there is a tempo marker to add
         if num_notes_before + i in tempo_dict.keys():
             result.append(tempo.MetronomeMark(number=tempo_dict[num_notes_before + i]))
+        is_accented = i % time_sig[0] in accented_notes
+        click_note = note.Note(note_pitch, quarterLength=0.5*quarter_length)
+        click_note.volume = 120 if is_accented else 80
         result.extend([
-            note.Note(note_pitch, quarterLength=0.5*quarter_length),
+            click_note,
             note.Rest(quarterLength=0.5*quarter_length),
         ])
     return notes_so_far, result

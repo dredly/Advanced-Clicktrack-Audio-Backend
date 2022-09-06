@@ -228,6 +228,7 @@ def make_midi_file_v2(section_data, note_bpms):
             notes_so_far, 
             section["rhythms"][0]["timeSig"], 
             section["overallData"]["numMeasures"], 
+            section["rhythms"][0]["accentedBeats"],
             note_pitch_main, 
             tempo_dict
         )
