@@ -291,6 +291,21 @@ def make_midi_file_v2(section_data, note_bpms, instruments=None) -> str | List[s
         clicktrack_stream.write("midi", "clicktrack.midi")
         return "clicktrack.midi"
 
+    # In this case a separate stream is made for each instrument
+    elif instruments and len(instruments) > 1 and has_polyrhythms:
+        main_stream = stream.Stream()
+        secondary_stream = stream.Stream()
+        for section in section_data:
+            notes_so_far, section_notes = make_section_polyrhythm_two_instruments(
+
+            )
+            main_stream.append(section_notes["main"])
+            secondary_stream.append(section_notes["secondary"])
+
+        main_stream.write("midi", "main.midi")
+        secondary_stream.write("midi", "secondary.midi")
+        return ["main.midi", "secondary.midi"]
+
     else:
         return "error"
     

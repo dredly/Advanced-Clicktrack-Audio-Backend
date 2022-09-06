@@ -5,6 +5,5 @@ For my MSc Computing Dissertation
 ## Main libraries used
 - Flask
 - Music21
-- Mido
 - Fluidsynth
 - Soundfile

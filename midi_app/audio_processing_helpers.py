@@ -194,8 +194,55 @@ def make_section_polyrhythm_one_instrument(
             
     return notes_so_far, {"main": main_rhythm, "secondary": secondary_rhythm}
 
-        
+def make_section_polyrhythm_two_instruments(
+    num_notes_before: int,
+    time_sigs: List[List[int]],
+    num_measures: int,
+    accented_notes: List[int], 
+    note_pitch_primary: str, 
+    note_pitch_secondary: str,
+    tempo_dict: dict,
+):
+    numerator = time_sigs[0][0]
+    denominator = time_sigs[0][1]
+    notes_so_far = num_notes_before + time_sigs[0][0] * num_measures
+    main_rhythm = [meter.TimeSignature(f"{numerator}/{denominator}")]
+    secondary_rhythm = []    
 
+    #Check if this particular section is a polyrhythm
+    if len(time_sigs) > 1:
+        primary_quarter_length = 4 / time_sigs[0][1]
+        secondary_quarter_length = (time_sigs[0][0] / time_sigs[1][0]) * (4 / time_sigs[1][1])
+        for i in range(time_sigs[0][0] * num_measures):
+            #Check if there is a tempo marker to add
+            if num_notes_before + i in tempo_dict.keys():
+                main_rhythm.append(tempo.MetronomeMark(number=tempo_dict[num_notes_before + i]))
+            main_rhythm.extend([
+                note.Note(note_pitch_primary, quarterLength=0.5*primary_quarter_length),
+                note.Rest(quarterLength=0.5*primary_quarter_length)
+            ])
+        for j in range(time_sigs[1][0] * num_measures):
+            secondary_rhythm.extend([
+                note.Note(note_pitch_secondary, quarterLength=0.5*secondary_quarter_length),
+                note.Rest(quarterLength=0.5*secondary_quarter_length)
+            ])
+
+    else:
+        quarter_length = 4 / time_sigs[0][1]
+        for i in range(time_sigs[0][0] * num_measures):
+            #Check if there is a tempo marker to add
+            if num_notes_before + i in tempo_dict.keys():
+                main_rhythm.append(tempo.MetronomeMark(number=tempo_dict[num_notes_before + i]))
+            is_accented = i % time_sigs[0][0] in accented_notes
+            click_note = note.Note(note_pitch_primary, quarterLength=0.5*quarter_length)
+            click_note.volume = 120 if is_accented else 80
+            main_rhythm.extend([
+                click_note,
+                note.Rest(quarterLength=0.5*quarter_length),
+            ])
+            secondary_rhythm.extend([note.Rest(quarterLength=quarter_length)])
+
+    return notes_so_far, {"main": main_rhythm, "secondary": secondary_rhythm}
 
 #Just for testing the functionality
 def main():
