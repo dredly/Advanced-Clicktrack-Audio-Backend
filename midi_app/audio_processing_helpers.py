@@ -1,5 +1,5 @@
 from typing import List
-from music21 import note
+from music21 import note, tempo, meter
 import numpy as np
 
 
@@ -67,3 +67,38 @@ def get_accent_indices(section_data: List[dict]) -> List[int]:
         )
         notes_so_far += notes_in_section
     return list(np.concatenate(indices).flat)
+
+def get_tempo_dict(note_bpms: List[int]) -> dict:
+    return dict((idx, bpm) for idx, bpm in enumerate(note_bpms) if idx == 0 or bpm != note_bpms[idx -1] )
+
+def make_section_v2(
+    num_notes_before: int,
+    time_sig: List[int], 
+    num_measures: int, 
+    note_pitch: str, 
+    tempo_dict: dict,
+) -> list:
+    quarter_length = 4 / time_sig[1]
+    #Start with a time signature marker
+    numerator = time_sig[0]
+    denominator = time_sig[1]
+    notes_so_far = num_notes_before + time_sig[0] * num_measures
+    result = [meter.TimeSignature(f"{numerator}/{denominator}")]
+    for i in range(time_sig[0] * num_measures):
+        #Check if there is a tempo marker to add
+        if num_notes_before + i in tempo_dict.keys():
+            result.append(tempo.MetronomeMark(number=tempo_dict[num_notes_before + i]))
+        result.extend([
+            note.Note(note_pitch, quarterLength=0.5*quarter_length),
+            note.Rest(quarterLength=0.5*quarter_length),
+        ])
+    return notes_so_far, result
+
+
+#Just for testing the functionality
+def main():
+    test_bpms = [120, 120, 120, 120, 120, 150, 150, 150, 150, 140, 138, 136]
+    print(get_tempo_dict(test_bpms))
+
+if __name__=='__main__':
+    main()

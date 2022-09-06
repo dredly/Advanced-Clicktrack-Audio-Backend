@@ -205,6 +205,44 @@ def make_midi_file(section_data, note_bpms, instruments=None) -> str | List[str]
 
     return "clicktrack.midi"
 
+def make_midi_file_v2(section_data, note_bpms):
+    """Generates a midi file from the given metadata
+    
+    Temporarily can only do with one instrument, and no polyrhthms
+    
+    """
+
+    clicktrack_stream = stream.Stream()
+    main_rhythm_part = stream.Part()
+
+    #Hardcoded for now
+    note_pitch_main = "C4"
+
+    # From note bpms, generate a tempo_dict of format {note_idx: bpm}, so that we only put tempo markers where
+    # the tempo actually changes
+    tempo_dict: dict = get_tempo_dict(note_bpms)
+    notes_so_far = 0
+
+    for section in section_data:
+        notes_so_far, section_notes = make_section_v2(
+            notes_so_far, 
+            section["rhythms"][0]["timeSig"], 
+            section["overallData"]["numMeasures"], 
+            note_pitch_main, 
+            tempo_dict
+        )
+        main_rhythm_part.append(
+            section_notes
+        )
+
+    clicktrack_stream.insert(0, main_rhythm_part)
+    clicktrack_stream.write("midi", "clicktrack.midi")
+
+    return "clicktrack.midi"
+
+def make_midi_file_v3(section_data, note_bpms):
+    pass
+
 def make_file_with_fluidsynth(
     section_data: List[dict],
     note_bpms: List[int],

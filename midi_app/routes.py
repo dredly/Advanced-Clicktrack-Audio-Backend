@@ -2,12 +2,13 @@ from flask import request
 from midi_app import app
 from .audio_processing import (
     make_midi_file,
+    make_midi_file_v2,
     make_file_with_fluidsynth,
     make_ogg_file,
 )
 from .file_management import upload_file
 
-from .logging import log
+from .log import log
 import time
 
 # Health check to quickly verify if the API is running or not
@@ -38,6 +39,21 @@ def make_midi() -> dict:
         else {"error": "Something went wrong with the file"}
     )
 
+@app.route("/api/make_midi_v2", methods=["POST"])
+def make_midi_v2() -> dict:
+    log('******* Using MIDI v2 route ********')
+    
+    data = request.json
+    section_data = data["sectionData"]
+    note_bpms = data["noteBpms"]
+    midi_filename = make_midi_file_v2(section_data, note_bpms)
+    midi_url = upload_file(midi_filename)
+
+    return (
+        {"url": midi_url}
+        if midi_url != "error"
+        else {"error": "Something went wrong with the file"}
+    )
 
 @app.route("/api/make_wav", methods=["POST"])
 def make_wav() -> dict:
