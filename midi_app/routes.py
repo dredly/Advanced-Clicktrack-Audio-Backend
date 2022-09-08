@@ -47,7 +47,7 @@ def make_wav() -> dict:
     section_data = data["sectionData"]
     note_bpms = data["noteBpms"]
     instrument_vals = data["instruments"]
-    wav_filename = make_file_with_fluidsynth(section_data, note_bpms, 'wav', instrument_vals)
+    wav_filename, midi_time_taken, audio_time_taken = make_file_with_fluidsynth(section_data, note_bpms, 'wav', instrument_vals)
     wav_url = upload_file(wav_filename)
 
     resolved_time = time.time()
