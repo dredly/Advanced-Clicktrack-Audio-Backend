@@ -2,9 +2,7 @@ from flask import request
 from midi_app import app
 from .audio_processing import (
     make_midi_file,
-    make_midi_file_v2,
     make_file_with_fluidsynth,
-    make_ogg_file,
 )
 from .file_management import upload_file
 from .instruments import all_instruments
@@ -33,22 +31,6 @@ def make_midi() -> dict:
     log(f'Request received at {received_time}')
     log(f'Request resolved at {resolved_time}')
     log(f'Total MIDI processing time = {resolved_time - received_time}')
-
-    return (
-        {"url": midi_url}
-        if midi_url != "error"
-        else {"error": "Something went wrong with the file"}
-    )
-
-@app.route("/api/make_midi_v2", methods=["POST"])
-def make_midi_v2() -> dict:
-    log('******* Using MIDI v2 route ********')
-    
-    data = request.json
-    section_data = data["sectionData"]
-    note_bpms = data["noteBpms"]
-    midi_filename = make_midi_file_v2(section_data, note_bpms)
-    midi_url = upload_file(midi_filename)
 
     return (
         {"url": midi_url}
@@ -98,29 +80,5 @@ def make_flac() -> dict:
     return (
         {"url": flac_url}
         if flac_url != "error"
-        else {"error": "Something went wrong with the file"}
-    )
-
-
-@app.route("/api/make_ogg", methods=["POST"])
-def make_ogg() -> dict:
-    received_time = time.time()
-    
-    data = request.json
-    section_data = data["sectionData"]
-    note_bpms = data["noteBpms"]
-    instrument_vals = data["instruments"]
-    ogg_filename = make_ogg_file(section_data, note_bpms, instrument_vals)
-    ogg_url = upload_file(ogg_filename)
-
-    resolved_time = time.time()
-
-    log(f'Request received at {received_time}')
-    log(f'Request resolved at {resolved_time}')
-    log(f'Total OGG processing time = {resolved_time - received_time}')
-
-    return (
-        {"url": ogg_url}
-        if ogg_url != "error"
         else {"error": "Something went wrong with the file"}
     )
