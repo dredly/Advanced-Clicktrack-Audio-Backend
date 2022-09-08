@@ -12,6 +12,8 @@ from .log import log
 load_dotenv()
 
 config = cloudinary.config(secure=True)
+
+
 DELETE_TIMEOUT = 15 * 60 # Automatically deletes the track from cloudinary after 15 minutes
 
 def delete_file_after_timeout(public_id):
